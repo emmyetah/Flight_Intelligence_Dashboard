@@ -2,6 +2,10 @@
 #include <string>
 
 struct RouteStats {
-    std::string airportCode,
-    int flightCount
+    //two airport codes are needed for the route 
+    std::string originAirportCode;
+    std::string destinationAirportCode;
+
+    //also initialised flightcount var to prevent garbage data
+    int flightCount = 0;
 };

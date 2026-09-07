@@ -19,10 +19,10 @@ Class Airport {
             const std::string& city
         );
         
-        //getters
-        std::string getIcaoCode() const;
-        std::string getIatacode() const;
-        std::string getName() const;
-        std::string getCity() const;
+        //getters - added amersand symbols to prevent copies
+        std::string& getIcaoCode() const;
+        std::string& getIatacode() const;
+        std::string& getName() const;
+        std::string& getCity() const;
 
-}
+};

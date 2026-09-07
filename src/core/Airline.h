@@ -4,14 +4,15 @@
 
 Class Airline {
     private:
-        std::string IcaoAirlineCode;
+        std::string icaoAirlineCode; 
         std::string name;
     public:
         Airline (
-            const std::string& Icao,
+            const std::string& icao,
             const std::string& name
-        )
+        );
 
-    std::string getAirlineIcao() const;
-    std::string getAirlineName() const;
-}
+    //added ampersand symbols to prevent copies & improve memory efficiency    
+    std::string& getAirlineIcao() const;
+    std::string& getAirlineName() const;
+};
