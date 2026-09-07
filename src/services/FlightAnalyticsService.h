@@ -1,8 +1,16 @@
 #pragma once
 
-//updateAirlineStats
-//updateAirportStats
-//update
+Class FlightAnalyticsService {
+    public:
 
-//updateFlightAnalytics
-//
+    int calcTotalFlightsAirport();
+    int calcTotalFlightsAirline();
+    int calcTotalDelaysAirport();
+    int calcTotalDelaysAirline();
+    int calcTotalCancellationsAirport();
+    int calcTotalCancellationsAirline();
+    vector returnTopFiveAirlines();
+    vector returnTopFiveRoutes();
+    vector returnAirlineStats();
+    vector returnAirportStats();
+}
