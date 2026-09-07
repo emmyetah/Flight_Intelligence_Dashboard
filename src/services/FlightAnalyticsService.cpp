@@ -51,11 +51,13 @@
 
     void FlightAnalyticsService::returnAirportStats(string airport) {
         //same as above but specific to the airport not airlines
-        int a = = calcTotalCancellationsAirport();
-        int b = calcTotalDelaysAirport();
-        int c = calcTotalFlightsAirport();
-        vector d = returnTopFiveAirlines();
-        vector e = returnTopFiveRoutes();
+        calcTotalCancellationsAirport();
+        calcTotalDelaysAirport();
+        calcTotalFlightsAirport();
+        calcTotalDepartures();
+        calcTotalArrivals();
+        returnTopFiveAirlines();
+        returnTopFiveRoutes();
         //then returns structures data for GUI controllers
         
     }
