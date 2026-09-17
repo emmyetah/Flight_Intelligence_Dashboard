@@ -6,6 +6,7 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QByteArray>
+#include <QString>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,10 @@ signals:
 private: 
     //declaring the manager pointer. Rule of thumb, use pointers not refernces or copies 
     QNetworkAccessManager *manager;
+    //for accessing the opensky API
+    QString clientId;
+    QString clientSecret;
+    
     void requestAccessToken();
     //processes the response e.g., parse, check for errors etc.
     void replyFinished(QNetworkReply *reply);
