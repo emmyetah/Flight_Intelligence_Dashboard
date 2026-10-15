@@ -25,8 +25,6 @@ public:
     //originally the data types were correct and not all void (int, std::vector etc) but I foudn that becuase QTNetwokr is asynchronous, I have to pass void then the signals will return the correct data type later.
     void requestArrivalsAirport(const std::string& AirportIcao);
     void requestDeparturesAirport(const std::string& AirportIcao);
-    void requestArrivalsAirline(const std::string& AirlineIcao);
-    void requestDeparturesAirline(const std::string& AirlineIcao);
     void requestAirportFlights(const std::string& AirportIcao);
 signals:
     //signals notify connected classes when requested data is ready and pass data to receiver.
@@ -52,8 +50,8 @@ private:
     enum class RequestType {
         Uknown,
         Token,
-        Arrivals,
-        Departures,
-        Flights
+        AirportArrivals,
+        AirportDepartures,
+        AirportFlights
     };
 } ;

@@ -27,18 +27,39 @@ OpenSkyApiHelper::OpenSkyApiHelper(QObject *parent) : QObject(parent){
 
 
 //public fns
-void OpenSkyApiHelper::requestArrivalsAirport(const std::string& AirportIcao) {
+void OpenSkyApiHelper::requestArrivalsAirport(const std::string& airportIcao, qint64 begin, qint64 end) {
+    //build URL
+    QUrl url("https://opensky-network.org/api/flights/arrival");
+    
+    //add airport begin + end params
+    QurlQuery query; 
+    query.addQueryItem("airport", QString::fromStdString(airportIcao));
+    query.addQueryItem("begin", Qstring::number(begin)); //need to add a helper funciton that returns correct start and end time, will think on how I want to implement this later
+    query.addQueryItem("end", QString::number(end));
+    url.setQuery(query);
+
+    //create request
+    if (accessToken.isEmpty()) {
+        emit networkErrorOccurred("No access token available");
+        return;
+    }
+    QNetworkRequest request(url)
+    
+    //add access token
+    request.setRawHeader("Authorisation", QByteArray("Bearer") + accessToken.toUtf8());
+
+    //send GET QNetworkRequest & tag reply
+    QNetworkReply *reply = manager->get(request)
+    reply->setProperty("requestType", static_cast<int>(RequestType::AirportArrivals));
+    
+    //store ICAO on pely
+    reply->setProperty("icao", QString::fromStdString(airportIcao));
 
 }
 void OpenSkyApiHelper::requestDeparturesAirport(const std::string& AirportIcao){
 
 }
-void OpenSkyApiHelper::requestArrivalsAirline(const std::string& AirlineIcao){
 
-}
-void OpenSkyApiHelper::requestDeparturesAirline(const std::string& AirlineIcao){
-    
-}
 void OpenSkyApiHelper::requestAirportFlights(const std::string& AirportIcao){
 
 }
@@ -100,13 +121,25 @@ void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
         return; 
         break;
 
-    case RequestType::Flights:
+    case RequestType::AirportFlights:
         parseFlightData(data);
         break;
 
     case RequestType::AirportArrivals:
-        //handle arrivals
-        break;
+        //parses the response as JSON
+        QJsonDocument document = QJsonDocument::fromJson(data);
+        //extracts array of flight objects
+        QJsonArray flights = document.array();
+
+        //counts how many flight objects are in the arrau
+        int arrivals = flights.size();
+
+        //gets the icao code to store with the number of flights as a refernece
+        std::string icao = reply->property("icao").toString().toStdString();
+        //tells us the reply is here and the data is ready to be used
+        emit arrivalsReady(icao, arrivals);
+
+    break;
 
     case RequestType::AirportDepartures:
         //handle departures
