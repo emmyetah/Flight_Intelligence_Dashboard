@@ -48,4 +48,12 @@ private:
     void replyFinished(QNetworkReply *reply);
     void handleNetworkError(QNetworkReply  *reply);
     void parseFlightData(const QByteArray &data); 
+
+    enum class RequestType {
+        Uknown,
+        Token,
+        Arrivals,
+        Departures,
+        Flights
+    };
 } ;

@@ -63,35 +63,64 @@ void OpenSkyApiHelper::requestAccessToken(){
     data.addQueryItem("client_secrt", clientSecret);
     //post the request via the manager pointer created to the url.
     manager->post(request,data.toString(QUrl::FullyEncoded).toUtf8());
+    reply->setProperty(
+        "requestType",
+        static_cast<int>(RequestType::Token) //set property can store integers so temporarily converting
+    );
 }
 void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
     if (reply->error() != QNetworkReply::NoError) {
-        //handle error here, if it fails we don't want ot parse it.
+        //handle error here, if it fails we don't want to parse it.
         emit networkErrorOccurred(reply->errorString());
         return;
     }
     //step 2 is to read the response into a Qbyte array
     QByteArray data = reply->readAll();    
 
-    //next is parsing the response to extract the token.
-    //after researching i found that Qt already has a JSON parser, safer to use thin in substr() as JSON formatting can change.
-    QJsonDocument document = QJson document::fromJson(data);
-    QJsonObject object = document.object();
+    RequestType requestType = static_cast<RequestType> (
+        reply->property("requestType").toInt()
+    );
 
-    //quick check before storing a token, in case it's empty
-    if (!object.contains("access_token") || !object["access_token"].isString()) {
-        emit networkErrorOccurred("Access token missing from response");
-        return;
-}
+     switch (requestType) {
+
+    case RequestType::Token:
+        //next is parsing the response to extract the token.
+        //after researching i found that Qt already has a JSON parser, safer to use thin in substr() as JSON formatting can change.
+        QJsonDocument document = QJson document::fromJson(data);
+        QJsonObject object = document.object();
+
+        //quick check before storing a token, in case it's empty
+        if (!object.contains("access_token") || !object["access_token"].isString()) {
+            emit networkErrorOccurred("Access token missing from response");
+            return;
+        }
     
-    //finally, store access token- 
-    accessToken = object["access_token"].toString();
-    return; 
+        //finally, store access token- 
+        accessToken = object["access_token"].toString();
+        return; 
+        break;
+
+    case RequestType::Flights:
+        parseFlightData(data);
+        break;
+
+    case RequestType::AirportArrivals:
+        //handle arrivals
+        break;
+
+    case RequestType::AirportDepartures:
+        //handle departures
+        break;
+
+    default:
+        emit networkErrorOccurred("Unknown request type");
+        break;
+    }
+    return;
+    
 }
 
-void OpenSkyApiHelper::handleNetworkError(QNetworkReply  *reply){
 
-}
 void OpenSkyApiHelper::parseFlightData(const QByteArray &data){
 
 }
