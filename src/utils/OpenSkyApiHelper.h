@@ -33,12 +33,15 @@ signals:
     void arrivalsReady(const std::string &icao, int arrivals);
     void departuresReady(const std::string &icao,int departures);
     void flightsReady(const std::vector<FlightData> &flights)
+
+    void networkErrorOccurred(const QString &message); //adding prominent erros here, I can emit then in later functions to pass onto other parts of my system wihtout crashes.
 private: 
     //declaring the manager pointer. Rule of thumb, use pointers not refernces or copies 
     QNetworkAccessManager *manager;
     //for accessing the opensky API
     QString clientId;
     QString clientSecret;
+    QString accessToken;
     
     void requestAccessToken();
     //processes the response e.g., parse, check for errors etc.
