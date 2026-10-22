@@ -43,10 +43,10 @@ void OpenSkyApiHelper::requestArrivalsAirport(const std::string& airportIcao, qi
         emit networkErrorOccurred("No access token available");
         return;
     }
-    QNetworkRequest request(url)
+    QNetworkRequest request(url);
     
     //add access token
-    request.setRawHeader("Authorisation", QByteArray("Bearer") + accessToken.toUtf8());
+    request.setRawHeader("Authorization", QByteArray("Bearer ") + accessToken.toUtf8());
 
     //send GET QNetworkRequest & tag reply
     QNetworkReply *reply = manager->get(request)
@@ -56,8 +56,25 @@ void OpenSkyApiHelper::requestArrivalsAirport(const std::string& airportIcao, qi
     reply->setProperty("icao", QString::fromStdString(airportIcao));
 
 }
-void OpenSkyApiHelper::requestDeparturesAirport(const std::string& AirportIcao){
+void OpenSkyApiHelper::requestDeparturesAirport(const std::string& airportIcao, qint64 begin, qint64 end){
+    //same structure as above request funtion
+    QUrl url ("https://opensky-network.org/api/flights/departure");
 
+    QUrlQuery query;
+    query.addQueryItem("airport", QString::fromStdString(airportIcao));
+    query.addQueryItem("begin", QString::number(begin));
+    query.addQueryItem("end", Qstring::number(end));
+    url.setQuery(query);
+
+    if (accessToken.isEmpty()) {
+        emit networkErrorOccurred("No access token available");
+        return;
+    }
+    QNetworkRequest request(url);
+    request.setRawHeader("Authorization", QByteArray("Bearer ") + accessToken.toUtf8());
+    QNetworkReply *reply = manager->get(request);
+    reply->setProperty("requestType", static_cast<int>(RequestType::AirportDepartures));
+    reply->setProperty("icao", QString::fromStdString(airportIcao));
 }
 
 void OpenSkyApiHelper::requestAirportFlights(const std::string& AirportIcao){
@@ -142,7 +159,14 @@ void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
     break;
 
     case RequestType::AirportDepartures:
-        //handle departures
+        //same structure as above case
+        QJsonDocument document = QJson::fromJson(data);
+        QJsonArray flights = document.array();
+        int departures = flights.size();
+
+        std::string icao = reply->property("icao").toString().toStdString();
+        emit arrivalsReady(icao,departures);
+
         break;
 
     default:
