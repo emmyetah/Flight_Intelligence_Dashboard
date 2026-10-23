@@ -8,8 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 
-add_executable(FlightIntelligenceDashboard
-
+add_library(FlightIntelligenceDashboard
+	src/services/FlightAnalyticsService.cpp
+	src/utils/OpenSkyApiHelper.cpp
 )
 
 target_link_libraries(FlightIntelligenceDashboard

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libFlightIntelligenceDashboard.a CMakeFiles/FlightIntelligenceDashboard.dir/src/services/FlightAnalyticsService.cpp.o CMakeFiles/FlightIntelligenceDashboard.dir/src/utils/OpenSkyApiHelper.cpp.o
+/usr/bin/ranlib libFlightIntelligenceDashboard.a

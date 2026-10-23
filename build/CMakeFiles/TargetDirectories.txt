@@ -1,0 +1,3 @@
+/home/emmy/Documents/projects/cpp/Flight_Intelligence_Dashboard/build/CMakeFiles/FlightIntelligenceDashboard.dir
+/home/emmy/Documents/projects/cpp/Flight_Intelligence_Dashboard/build/CMakeFiles/edit_cache.dir
+/home/emmy/Documents/projects/cpp/Flight_Intelligence_Dashboard/build/CMakeFiles/rebuild_cache.dir

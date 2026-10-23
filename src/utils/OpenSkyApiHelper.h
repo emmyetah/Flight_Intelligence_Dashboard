@@ -23,14 +23,14 @@ public:
 
     //request fucntions in dcelared publically as they'll be used by my services
     //originally the data types were correct and not all void (int, std::vector etc) but I foudn that becuase QTNetwokr is asynchronous, I have to pass void then the signals will return the correct data type later.
-    void requestArrivalsAirport(const std::string& AirportIcao);
-    void requestDeparturesAirport(const std::string& AirportIcao);
+    void requestArrivalsAirport(const std::string& AirportIcao, qint64 begin, qint64 end);
+    void requestDeparturesAirport(const std::string& AirportIcao, qint64 begin, qint64 end);
     void requestAirportFlights(const std::string& AirportIcao);
 signals:
     //signals notify connected classes when requested data is ready and pass data to receiver.
     void arrivalsReady(const std::string &icao, int arrivals);
     void departuresReady(const std::string &icao,int departures);
-    void flightsReady(const std::vector<FlightData> &flights)
+    void flightsReady(const std::vector<FlightData> &flights);
 
     void networkErrorOccurred(const QString &message); //adding prominent erros here, I can emit then in later functions to pass onto other parts of my system wihtout crashes.
 private: 

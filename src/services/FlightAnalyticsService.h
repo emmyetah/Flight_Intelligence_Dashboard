@@ -7,7 +7,7 @@
 #include "../core/AirlineStats.h"
 
 
-Class FlightAnalyticsService {
+class FlightAnalyticsService {
     private:
     //decided to make all the calculation functions private as they're internal implementation details
     //Also, all airline specific functions need a specified airpot - added
@@ -24,6 +24,7 @@ Class FlightAnalyticsService {
         std::vector<RouteStats> returnTopFiveRoutes(const std::string&  airportIcao);
 
     public:
+        FlightAnalyticsService();
         
         AirlineStats returnAirlineStats(const std::string&  airlineIcao, const std::string& airportIcao);
         AirportStats returnAirportStats(const std::string&  airportIcao);

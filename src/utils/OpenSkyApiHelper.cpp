@@ -1,9 +1,12 @@
 #include "OpenSkyApiHelper.h"
 
 #include <QUrl>
-#include <QurlQuery>
+#include <QUrlQuery>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
+#include <QtGlobal>
+#include <QString>
 
 
 //Learning notes
@@ -12,8 +15,8 @@
 
 OpenSkyApiHelper::OpenSkyApiHelper(QObject *parent) : QObject(parent){
     manager = new QNetworkAccessManager(this);
-    clientId = qEnironmentVariable("OPENSKY_CLIENT_ID");
-    clientSecret = qEnironmentVariable("OPENSKY_CLIENT_SECRET");
+    clientId = qEnvironmentVariable("OPENSKY_CLIENT_ID");
+    clientSecret = qEnvironmentVariable("OPENSKY_CLIENT_SECRET");
     
     connect(
         manager, //whos the sender
@@ -32,9 +35,9 @@ void OpenSkyApiHelper::requestArrivalsAirport(const std::string& airportIcao, qi
     QUrl url("https://opensky-network.org/api/flights/arrival");
     
     //add airport begin + end params
-    QurlQuery query; 
+    QUrlQuery query; 
     query.addQueryItem("airport", QString::fromStdString(airportIcao));
-    query.addQueryItem("begin", Qstring::number(begin)); //need to add a helper funciton that returns correct start and end time, will think on how I want to implement this later
+    query.addQueryItem("begin", QString::number(begin)); //need to add a helper funciton that returns correct start and end time, will think on how I want to implement this later
     query.addQueryItem("end", QString::number(end));
     url.setQuery(query);
 
@@ -49,7 +52,7 @@ void OpenSkyApiHelper::requestArrivalsAirport(const std::string& airportIcao, qi
     request.setRawHeader("Authorization", QByteArray("Bearer ") + accessToken.toUtf8());
 
     //send GET QNetworkRequest & tag reply
-    QNetworkReply *reply = manager->get(request)
+    QNetworkReply *reply = manager->get(request);
     reply->setProperty("requestType", static_cast<int>(RequestType::AirportArrivals));
     
     //store ICAO on pely
@@ -63,7 +66,7 @@ void OpenSkyApiHelper::requestDeparturesAirport(const std::string& airportIcao, 
     QUrlQuery query;
     query.addQueryItem("airport", QString::fromStdString(airportIcao));
     query.addQueryItem("begin", QString::number(begin));
-    query.addQueryItem("end", Qstring::number(end));
+    query.addQueryItem("end", QString::number(end));
     url.setQuery(query);
 
     if (accessToken.isEmpty()) {
@@ -84,7 +87,7 @@ void OpenSkyApiHelper::requestAirportFlights(const std::string& AirportIcao){
 //private
 void OpenSkyApiHelper::requestAccessToken(){
     //set the target authentication URL
-    QUrl url = ("https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token");
+    QUrl url("https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token");
     //then make the request usin g QNetwork Library
     QNetworkRequest request(url);
     //add arguments/headers to the requesr
@@ -94,17 +97,15 @@ void OpenSkyApiHelper::requestAccessToken(){
     );
 
     //create a data object
-    QurlQuery data;
+    QUrlQuery data;
     //add query items / arguments to the data object (required by opensky)
     data.addQueryItem("grant_type", "client_credentials");
     data.addQueryItem("client_id", clientId);
     data.addQueryItem("client_secrt", clientSecret);
     //post the request via the manager pointer created to the url.
     manager->post(request,data.toString(QUrl::FullyEncoded).toUtf8());
-    reply->setProperty(
-        "requestType",
-        static_cast<int>(RequestType::Token) //set property can store integers so temporarily converting
-    );
+    QNetworkReply *reply = manager->get(request);
+    reply->setProperty("requestType",static_cast<int>(RequestType::Token)); //set property can store integers so temporarily converting
 }
 void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
     if (reply->error() != QNetworkReply::NoError) {
@@ -122,9 +123,10 @@ void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
      switch (requestType) {
 
     case RequestType::Token:
+    { 
         //next is parsing the response to extract the token.
         //after researching i found that Qt already has a JSON parser, safer to use thin in substr() as JSON formatting can change.
-        QJsonDocument document = QJson document::fromJson(data);
+        QJsonDocument document = QJsonDocument::fromJson(data);
         QJsonObject object = document.object();
 
         //quick check before storing a token, in case it's empty
@@ -137,12 +139,15 @@ void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
         accessToken = object["access_token"].toString();
         return; 
         break;
-
+    }
     case RequestType::AirportFlights:
+    {
         parseFlightData(data);
         break;
+    }
 
     case RequestType::AirportArrivals:
+    { 
         //parses the response as JSON
         QJsonDocument document = QJsonDocument::fromJson(data);
         //extracts array of flight objects
@@ -157,10 +162,12 @@ void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
         emit arrivalsReady(icao, arrivals);
 
     break;
+    }
 
     case RequestType::AirportDepartures:
+    {
         //same structure as above case
-        QJsonDocument document = QJson::fromJson(data);
+        QJsonDocument document = QJsonDocument::fromJson(data);
         QJsonArray flights = document.array();
         int departures = flights.size();
 
@@ -168,13 +175,16 @@ void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
         emit arrivalsReady(icao,departures);
 
         break;
+    }
 
     default:
+    { 
         emit networkErrorOccurred("Unknown request type");
         break;
     }
     return;
     
+    }
 }
 
 
