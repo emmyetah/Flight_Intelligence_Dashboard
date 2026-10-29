@@ -22,15 +22,38 @@ OpenSkyApiHelper::OpenSkyApiHelper(QObject *parent) : QObject(parent){
         manager, //whos the sender
         &QNetworkAccessManager::finished, //how will you know its done (signal)
         this, //whose object fucniton should be called (receiever) 
-        &OpenSkyApiHelper::replyFinished); //what function needs to run when it's done
+        &OpenSkyApiHelper::replyFinished //what function needs to run when it's done
+    ); 
+    connect(this, &OpenSkyApiHelper::authenticationReady,
+        this, [this]() {
+            pendingFlightReplies = 2;
+            requestArrivalsAirport(pendingAirportIcao, pendingBegin, pendingEnd);
+            requestDeparturesAirport(pendingAirportIcao, pendingBegin, pendingEnd);
+        }
+    );
+ }
+
+ //
+void OpenSkyApiHelper::fetchAirportFlights(const std::string& airportIcao, qint64 begin, qint64 end){
+    
+    if (busy) {
+        emit networkErrorOccurred("A flight fetch is already in progress");
+        return;
     }
 
-    //QUrl creates a structured url form the string you put in it. The ->get is telling the manager fucniton to send the HTTP Request using GET
-    //use this line in requests manager->get(QNetworkRequest(QUrl(""))); // this will return a QNetworkReply*
+    busy = true;
+    
+    pendingAirportIcao = airportIcao;
+    pendingBegin = begin;
+    pendingEnd = end;
 
+    requestAccessToken();
 
-//public fns
+    
+}
+
 void OpenSkyApiHelper::requestArrivalsAirport(const std::string& airportIcao, qint64 begin, qint64 end) {
+    
     //build URL
     QUrl url("https://opensky-network.org/api/flights/arrival");
     
@@ -80,9 +103,30 @@ void OpenSkyApiHelper::requestDeparturesAirport(const std::string& airportIcao, 
     reply->setProperty("icao", QString::fromStdString(airportIcao));
 }
 
-void OpenSkyApiHelper::requestAirportFlights(const std::string& AirportIcao){
+std::vector<FlightData> OpenSkyApiHelper::parseFlightData(const QJsonArray &jsonFlights) {
+    //create an empty vector to store the flightData objects
+    std::vector<FlightData> flights;
+    //turn flight JSON arrays into flightData objects,
+    for (const QJsonValue &value : jsonFlights) {
+        QJsonObject jsonFlight = value.toObject();
 
+        //create a singular object and link the data to the respective fields
+        FlightData flight;
+
+        flight.icao24 = jsonFlight["icao24"].toString().toStdString();
+        flight.callsign = jsonFlight["callsign"].toString().toStdString();
+        flight.departureAirport = jsonFlight["estDepartureAirport"].toString().toStdString();
+        flight.arrivalAirport = jsonFlight["estArrivalAirport"].toString().toStdString();
+        flight.firstSeen = static_cast<qint64>(jsonFlight["firstSeen"].toInteger());
+        flight.lastSeen = static_cast<qint64>(jsonFlight["lastSeen"].toInteger());
+
+        flights.push_back(flight);
+    }   
+
+    return flights; 
+    
 }
+
 
 //private
 void OpenSkyApiHelper::requestAccessToken(){
@@ -101,14 +145,24 @@ void OpenSkyApiHelper::requestAccessToken(){
     //add query items / arguments to the data object (required by opensky)
     data.addQueryItem("grant_type", "client_credentials");
     data.addQueryItem("client_id", clientId);
-    data.addQueryItem("client_secrt", clientSecret);
+    data.addQueryItem("client_secret", clientSecret);
     //post the request via the manager pointer created to the url.
-    manager->post(request,data.toString(QUrl::FullyEncoded).toUtf8());
-    QNetworkReply *reply = manager->get(request);
+    QNetworkReply *reply = manager->post(request,data.toString(QUrl::FullyEncoded).toUtf8());
     reply->setProperty("requestType",static_cast<int>(RequestType::Token)); //set property can store integers so temporarily converting
 }
 void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
+    reply->deleteLater(); // reccomended by Qt, schedules every reply for cleanup
+    RequestType requestType = static_cast<RequestType>(reply->property("requestType").toInt());
+    if (requestType == RequestType::AirportArrivals || requestType == RequestType::AirportDepartures) {
+        --pendingFlightReplies;
+        if (pendingFlightReplies == 0) {
+            busy = false;
+        }
+    }
     if (reply->error() != QNetworkReply::NoError) {
+        if (requestType == RequestType::Token) {
+                busy = false;
+            }
         //handle error here, if it fails we don't want to parse it.
         emit networkErrorOccurred(reply->errorString());
         return;
@@ -116,12 +170,7 @@ void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
     //step 2 is to read the response into a Qbyte array
     QByteArray data = reply->readAll();    
 
-    RequestType requestType = static_cast<RequestType> (
-        reply->property("requestType").toInt()
-    );
-
-     switch (requestType) {
-
+    switch (requestType) {
     case RequestType::Token:
     { 
         //next is parsing the response to extract the token.
@@ -131,48 +180,65 @@ void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
 
         //quick check before storing a token, in case it's empty
         if (!object.contains("access_token") || !object["access_token"].isString()) {
+            busy = false;
             emit networkErrorOccurred("Access token missing from response");
             return;
         }
-    
+        
         //finally, store access token- 
         accessToken = object["access_token"].toString();
-        return; 
-        break;
-    }
-    case RequestType::AirportFlights:
-    {
-        parseFlightData(data);
+
+        if (accessToken.isEmpty()) {
+            busy = false;
+            emit networkErrorOccurred("No access token available");
+            return;
+        }
+
+        emit authenticationReady();
         break;
     }
 
     case RequestType::AirportArrivals:
-    { 
+    {   
+        QJsonParseError error;
+
         //parses the response as JSON
-        QJsonDocument document = QJsonDocument::fromJson(data);
+        QJsonDocument document = QJsonDocument::fromJson(data, &error);
+
+        //checks if JSON parser hit a syntax error or has an incorrect format
+        if (error.error != QJsonParseError::NoError || !document.isArray()) {
+            emit networkErrorOccurred("Invalid flight response");
+            return;
+        }
+
         //extracts array of flight objects
         QJsonArray flights = document.array();
-
-        //counts how many flight objects are in the arrau
-        int arrivals = flights.size();
-
+       
+        //parses flight objects are in the array
+        auto arrivals = parseFlightData(flights);
         //gets the icao code to store with the number of flights as a refernece
         std::string icao = reply->property("icao").toString().toStdString();
         //tells us the reply is here and the data is ready to be used
         emit arrivalsReady(icao, arrivals);
 
-    break;
+        break;
     }
 
     case RequestType::AirportDepartures:
     {
         //same structure as above case
-        QJsonDocument document = QJsonDocument::fromJson(data);
+        QJsonParseError error;
+        QJsonDocument document = QJsonDocument::fromJson(data, &error);
+        if (error.error != QJsonParseError::NoError || !document.isArray()) {
+            emit networkErrorOccurred("Invalid flight response");
+            return;
+        }
         QJsonArray flights = document.array();
-        int departures = flights.size();
+
+        auto departures = parseFlightData(flights);
 
         std::string icao = reply->property("icao").toString().toStdString();
-        emit arrivalsReady(icao,departures);
+        emit departuresReady(icao,departures);
 
         break;
     }
@@ -187,9 +253,5 @@ void OpenSkyApiHelper::replyFinished(QNetworkReply *reply){
     }
 }
 
-
-void OpenSkyApiHelper::parseFlightData(const QByteArray &data){
-
-}
 
 
